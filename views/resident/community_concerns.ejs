@@ -1,0 +1,222 @@
+<div class="container-fluid px-4 py-4">
+    <div class="mb-4">
+        <a href="<%= route('resident.dashboard') %>" class="text-muted text-decoration-none small fw-bold mb-2 d-inline-block">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+        <h3 class="fw-bold text-dark mb-1">My Community Concerns</h3>
+        <p class="text-muted small mb-0">Track the progress of your submitted concerns and read barangay feedback.</p>
+    </div>
+
+    <% if (sessionGet('success')) { %>
+        <div class="alert alert-success alert-dismissible show rounded-3 mb-4 shadow-sm" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i> <%= sessionGet('success') %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <% } %>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button type="button" class="btn btn-primary rounded-3 px-4" data-bs-toggle="modal" data-bs-target="#submitConcernModal">
+            <i class="fa-solid fa-plus me-1"></i> Submit New Concern
+        </button>
+    </div>
+
+    <% if ((!concerns || concerns.length === 0)) { %>
+        <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+            <div class="text-muted mb-3"><i class="fa-solid fa-bullhorn fs-1"></i></div>
+            <h5 class="fw-bold text-dark">No Concerns Submitted Yet</h5>
+            <p class="text-muted small mb-0">No community concerns have been submitted yet. Once you submit a concern, it will appear here along with its status and any updates from the barangay.</p>
+        </div>
+    <% } else { %>
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="text-muted small" style="background-color: #f8f9fe;">
+                        <tr>
+                            <th class="ps-4 py-3 border-0">CONCERN ID</th>
+                            <th class="py-3 border-0">TITLE</th>
+                            <th class="py-3 border-0">CATEGORY</th>
+                            <th class="py-3 border-0">SUBMITTED</th>
+                            <th class="py-3 border-0">STATUS</th>
+                            <th class="py-3 border-0">LAST UPDATED</th>
+                            <th class="pe-4 py-3 border-0 text-end">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% for (const concern of (concerns || [])) { %>
+                            <%
+var statusClass = ((__v) => { if (__v === 'Resolved') return ('status-badge status-resolved'); if (__v === 'Rejected') return ('status-badge status-rejected'); if (__v === 'In Progress') return ('status-badge status-in-progress'); if (__v === 'Under Review') return ('status-badge status-under-review'); return ('status-badge status-pending'); })(concern.status);
+%>
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark"><%= concern.concern_id %></td>
+                                <td>
+                                    <div class="fw-semibold text-dark" style="font-size: 14px;"><%= concern.title %></div>
+                                    <div class="text-muted" style="font-size: 12px;"><%= strLimit(concern.location, 40) %></div>
+                                </td>
+                                <td><span class="badge bg-light text-dark border"><%= concern.category %></span></td>
+                                <td class="text-muted" style="font-size: 13px;"><%= formatDate(concern.created_at, 'M d, Y') %></td>
+                                <td><span class="<%= statusClass %>"><%= concern.status %></span></td>
+                                <td class="text-muted" style="font-size: 13px;"><%= formatDate(concern.updated_at, 'M d, Y h:i A') %></td>
+                                <td class="pe-4 text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#concernModal<%= concern.id %>">
+                                        <i class="fa-solid fa-eye me-1"></i> View Details
+                                    </button>
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<% for (const concern of (concerns || [])) { %>
+    <%
+var statusClass = ((__v) => { if (__v === 'Resolved') return ('status-badge status-resolved'); if (__v === 'Rejected') return ('status-badge status-rejected'); if (__v === 'In Progress') return ('status-badge status-in-progress'); if (__v === 'Under Review') return ('status-badge status-under-review'); return ('status-badge status-pending'); })(concern.status);
+%>
+    <div class="modal fade" id="concernModal<%= concern.id %>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h5 class="modal-title fw-bold"><%= concern.title %></h5>
+                        <div class="text-muted small"><%= concern.concern_id %></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="text-muted small">Category</div>
+                            <div class="fw-semibold"><%= concern.category %></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Status</div>
+                            <span class="<%= statusClass %>"><%= concern.status %></span>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Submitted Date</div>
+                            <div class="fw-semibold"><%= formatDate(concern.created_at, 'F d, Y') %></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="text-muted small mb-1">Location</div>
+                        <div class="bg-light rounded-3 p-3 border"><%= concern.location %></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="text-muted small mb-1">Description</div>
+                        <div class="bg-light rounded-3 p-3 border" style="font-size: 14px;"><%= concern.description %></div>
+                    </div>
+
+                    <% if (concern.incident_date) { %>
+                        <div class="mb-3">
+                            <div class="text-muted small">Date of Incident</div>
+                            <div class="fw-semibold"><%= formatDate(concern.incident_date, 'F d, Y') %></div>
+                        </div>
+                    <% } %>
+
+                    <div class="mb-3">
+                        <div class="text-muted small mb-1">Admin Feedback &amp; Updates</div>
+                        <% if ((Boolean(concern.remarks) && concern.remarks.length > 0)) { %>
+                            <div class="d-flex flex-column gap-2">
+                                <% for (const remark of (concern.remarks || [])) { %>
+                                    <div class="bg-primary bg-opacity-10 rounded-3 p-3 border border-primary border-opacity-25">
+                                        <% if (remark.remark !== '') { %>
+                                            <div style="font-size: 14px; white-space: pre-wrap;"><%= remark.remark %></div>
+                                        <% } %>
+                                        <% if (remark.attachment_path) { %>
+                                            <%
+var feedbackImageUrl = route('resident.concerns.remarks.attachment', { 'concern': concern.id, 'remark': remark.id });
+%>
+                                            <div class="<%= remark.remark !== '' ? 'mt-2' : '' %>">
+                                                <a href="<%= feedbackImageUrl %>" target="_blank" rel="noopener" aria-label="View larger admin feedback image">
+                                                    <img src="<%= feedbackImageUrl %>" alt="Image attached to barangay feedback" class="img-fluid rounded-3 border" style="max-height: 280px; object-fit: contain;">
+                                                </a>
+                                            </div>
+                                        <% } %>
+                                        <div class="text-muted mt-2" style="font-size: 12px;">
+                                            <i class="fa-solid fa-user-shield me-1"></i><%= remark.admin?.name ?? 'Barangay Staff' %>
+                                            &bull; <%= formatDate(remark.created_at, 'M d, Y h:i A') %>
+                                        </div>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } else if (concern.admin_remarks) { %>
+                            <div class="bg-primary bg-opacity-10 rounded-3 p-3 border border-primary border-opacity-25" style="font-size: 14px; white-space: pre-wrap;"><%= concern.admin_remarks %></div>
+                        <% } else { %>
+                            <div class="bg-primary bg-opacity-10 rounded-3 p-3 border border-primary border-opacity-25" style="font-size: 14px;">
+                                <span class="text-muted">No remarks from barangay staff yet.</span>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="text-muted small">Last Updated</div>
+                        <div class="fw-semibold"><%= formatDate(concern.updated_at, 'F d, Y - h:i A') %></div>
+                    </div>
+
+                    <% if (concern.photo_path) { %>
+                        <%
+var concernPhotoUrl = isValidUrl(concern.photo_path)
+                                ? concern.photo_path
+                                : route('resident.concerns.photo', { 'concern': concern.id, 'filename': basename(String(concern.photo_path ?? '').replaceAll('\\', '/')) });
+%>
+                        <div>
+                            <div class="text-muted small mb-2">Attached Photo</div>
+                            <a href="<%= concernPhotoUrl %>" target="_blank" rel="noopener">
+                                <img src="<%= concernPhotoUrl %>" alt="Concern attachment" class="img-fluid rounded-3 border" style="max-height: 280px; object-fit: cover;">
+                            </a>
+                        </div>
+                    <% } %>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light border rounded-3 px-4" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<% } %>
+
+<%# Submit New Concern Modal %>
+<div class="modal fade" id="submitConcernModal" tabindex="-1" aria-labelledby="submitConcernModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold" id="submitConcernModalLabel">Submit New Concern</h5>
+                    <p class="text-muted small mb-0">Report a community issue directly from your resident portal.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <% if (errors.any()) { %>
+                    <div class="alert alert-danger rounded-3 mb-4">
+                        <strong>Please fix the following:</strong>
+                        <ul class="mb-0 mt-2">
+                            <% for (const error of (errors.all() || [])) { %>
+                                <li><%= error %></li>
+                            <% } %>
+                        </ul>
+                    </div>
+                <% } %>
+
+                <%- include('/partials/community-concern-form', { 'formId': 'submitConcernForm', 'context': 'modal', 'isResident': true, 'guestLocked': false, 'authUser': authUser, 'categories': categories, 'residentAddress': residentAddress, 'showResidentInfo': false, 'idPrefix': 'modal' }) %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (errors.any()) { %>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalEl = document.getElementById('submitConcernModal');
+        if (modalEl) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+    });
+</script>
+<% } %>
