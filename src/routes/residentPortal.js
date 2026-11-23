@@ -9,7 +9,7 @@ import {
 } from '../lib/models.js';
 import { verifySecret } from '../lib/password.js';
 import { diffForHumans } from '../lib/viewHelpers.js';
-import { requireAuth, requireResidentPin, requireVerified } from '../middleware/auth.js';
+import { requireAuth, requireResident, requireResidentPin, requireVerified } from '../middleware/auth.js';
 import { verifyMultipartCsrfAndMethod } from '../middleware/csrf.js';
 import { populateResidentLayoutLocals } from '../middleware/layoutLocals.js';
 import { limit10PerMin } from '../middleware/rateLimit.js';
@@ -25,6 +25,7 @@ function residentGuard(routeName) {
             next();
         },
         requireAuth('/resident/login'),
+        requireResident,
         requireVerified,
         requireResidentPin,
         populateResidentLayoutLocals,
@@ -334,12 +335,12 @@ export function registerResidentPortalRoutes(app) {
     });
 
     // Session Lock / Unlock
-    app.post('/resident/session/lock', requireAuth('/resident/login'), requireVerified, (req, res) => {
+    app.post('/resident/session/lock', requireAuth('/resident/login'), requireResident, requireVerified, (req, res) => {
         req.session.is_locked = true;
         return res.json({ success: true });
     });
 
-    app.post('/resident/session/unlock', requireAuth('/resident/login'), requireVerified, limit10PerMin, async (req, res) => {
+    app.post('/resident/session/unlock', requireAuth('/resident/login'), requireResident, requireVerified, limit10PerMin, async (req, res) => {
         const pin = String(req.body?.security_pin || '');
         if (!/^\d{6}$/.test(pin)) {
             return res.redirectBackWithErrors({ security_pin: 'Please enter a valid 6-digit PIN.' }, false, '/resident');

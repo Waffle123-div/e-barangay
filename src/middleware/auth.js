@@ -95,6 +95,29 @@ export function requireAdmin(req, res, next) {
     next();
 }
 
+export function requireResident(req, res, next) {
+    if (!req.user) {
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+            return res.status(401).json({ success: false, message: 'Unauthenticated.' });
+        }
+        return res.redirect('/resident/login');
+    }
+    const roleLower = String(req.user.role || '').trim().toLowerCase();
+    if (roleLower === 'admin') {
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+            return res.status(403).json({ success: false, message: 'Access Denied. Residents only.' });
+        }
+        return res.redirectWithFlash('/admin', { error: 'Access Denied. Residents only.' });
+    }
+    if (roleLower !== 'resident') {
+        if (req.xhr || req.headers.accept?.includes('application/json')) {
+            return res.status(403).json({ success: false, message: 'Access Denied. Residents only.' });
+        }
+        return res.redirectWithFlash('/resident/login', { error: 'Access Denied. Residents only.' });
+    }
+    next();
+}
+
 export function requireResidentPin(req, res, next) {
     const user = req.user;
     if (!user) return res.redirect('/resident/login');

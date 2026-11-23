@@ -5,12 +5,19 @@ delete process.env.GROQ_API_KEY;
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import express from 'express';
 import { test } from 'node:test';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { ROOT_DIR } from '../src/config/env.js';
+import { requireResident } from '../src/middleware/auth.js';
+import { flashMiddleware } from '../src/middleware/flash.js';
 import { hashSecret, verifySecret } from '../src/lib/password.js';
 import { route, routeIs } from '../src/lib/routeMap.js';
+import { registerResidentAuthRoutes } from '../src/routes/residentAuth.js';
+import { registerResidentPortalRoutes } from '../src/routes/residentPortal.js';
+import { registerResidentSettingsRoutes } from '../src/routes/residentSettings.js';
+import { registerVerificationRoutes } from '../src/routes/verification.js';
 
 const app = createApp();
 
@@ -143,4 +150,71 @@ test('supabase/schema.sql defines all 10 tables and 15 document types', () => {
     assert.ok(docTypeSeedBlock, 'Missing document_types seed INSERT block');
     const rowCount = (docTypeSeedBlock[0].match(/\.docx'/g) || []).length;
     assert.equal(rowCount, 15, `Expected 15 document_types rows with .docx templates, found ${rowCount}`);
+});
+
+test('requireResident prevents authenticated admin users from entering resident routes', async () => {
+    // Direct middleware checks
+    let residentNextCalled = false;
+    requireResident(
+        { user: { id: 2, role: 'Resident', status: 'active' }, headers: {} },
+        {},
+        () => {
+            residentNextCalled = true;
+        }
+    );
+    assert.equal(residentNextCalled, true);
+
+    let adminNextCalled = false;
+    let redirectTarget = null;
+    requireResident(
+        { user: { id: 1, role: 'Admin', status: 'active' }, headers: {} },
+        {
+            redirectWithFlash(url) {
+                redirectTarget = url;
+            },
+        },
+        () => {
+            adminNextCalled = true;
+        }
+    );
+    assert.equal(adminNextCalled, false);
+    assert.equal(redirectTarget, '/admin');
+
+    // End-to-end Express route checks with an authenticated Admin user
+    const adminApp = express();
+    adminApp.use((req, _res, next) => {
+        req.session = {};
+        req.user = {
+            id: 1,
+            role: 'Admin',
+            status: 'active',
+            email_verified_at: new Date(),
+        };
+        next();
+    });
+    adminApp.use(flashMiddleware);
+    registerVerificationRoutes(adminApp);
+    registerResidentAuthRoutes(adminApp);
+    registerResidentPortalRoutes(adminApp);
+    registerResidentSettingsRoutes(adminApp);
+
+    for (const p of [
+        '/resident',
+        '/resident/settings',
+        '/resident/request-document',
+        '/resident/track-request',
+        '/resident/community-concerns',
+        '/resident/pending-approval',
+        '/complete-registration',
+        '/email/verify',
+    ]) {
+        const res = await request(adminApp).get(p);
+        assert.equal(res.status, 302, `Expected 302 redirect for admin visiting ${p}, got ${res.status}`);
+        assert.equal(res.headers.location, '/admin', `Expected ${p} to redirect admin to /admin`);
+    }
+
+    const jsonRes = await request(adminApp)
+        .get('/resident/notifications')
+        .set('Accept', 'application/json');
+    assert.equal(jsonRes.status, 403);
 });

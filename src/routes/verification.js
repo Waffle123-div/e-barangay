@@ -3,7 +3,7 @@ import { env, getRequestBaseUrl } from '../config/env.js';
 import { query, queryOne } from '../db/pool.js';
 import { NotificationService } from '../lib/models.js';
 import { cleanPhone } from '../lib/validators.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireResident } from '../middleware/auth.js';
 import { limit10PerMin, limit6PerMin } from '../middleware/rateLimit.js';
 import { sendEmailVerificationLinkEmail } from '../services/mailService.js';
 
@@ -17,14 +17,14 @@ export function buildSignedVerificationUrl(user, baseUrl) {
 
 export function registerVerificationRoutes(app) {
     // Email Verification Notice
-    app.get('/email/verify', requireAuth('/resident/login'), (req, res) => {
+    app.get('/email/verify', requireAuth('/resident/login'), requireResident, (req, res) => {
         req.routeName = 'verification.notice';
         res.locals.currentRoute = 'verification.notice';
         return res.render('resident/verify_email');
     });
 
     // Resend Verification Email
-    app.post('/email/verification-notification', requireAuth('/resident/login'), limit6PerMin, async (req, res) => {
+    app.post('/email/verification-notification', requireAuth('/resident/login'), requireResident, limit6PerMin, async (req, res) => {
         try {
             if (req.user?.email) {
                 const url = buildSignedVerificationUrl(req.user, getRequestBaseUrl(req));
@@ -38,7 +38,7 @@ export function registerVerificationRoutes(app) {
     });
 
     // Phone Verification Form
-    app.get('/phone/verify', requireAuth('/resident/login'), (req, res) => {
+    app.get('/phone/verify', requireAuth('/resident/login'), requireResident, (req, res) => {
         req.routeName = 'verify_phone.notice';
         res.locals.currentRoute = 'verify_phone.notice';
         const phone = res.locals.sessionGet('phone_number') || req.user.phone_number;
@@ -47,7 +47,7 @@ export function registerVerificationRoutes(app) {
     });
 
     // Phone Verification Submit
-    app.post('/phone/verify', requireAuth('/resident/login'), limit10PerMin, async (req, res) => {
+    app.post('/phone/verify', requireAuth('/resident/login'), requireResident, limit10PerMin, async (req, res) => {
         const rawCode = req.body?.code;
         if (!Array.isArray(rawCode) || rawCode.length !== 5) {
             return res.redirectBackWithErrors({ code: 'Please enter the 5-digit verification code.' }, false, '/phone/verify');

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { query, queryOne } from '../db/pool.js';
 import { ActivityLog } from '../lib/models.js';
 import { hashSecret, verifySecret } from '../lib/password.js';
-import { requireAuth, requireResidentPin, requireVerified } from '../middleware/auth.js';
+import { requireAuth, requireResident, requireResidentPin, requireVerified } from '../middleware/auth.js';
 import { verifyMultipartCsrfAndMethod } from '../middleware/csrf.js';
 import { populateResidentLayoutLocals } from '../middleware/layoutLocals.js';
 import { limit10PerMin, limit5PerMin } from '../middleware/rateLimit.js';
@@ -19,6 +19,7 @@ function settingsGuard(routeName) {
             next();
         },
         requireAuth('/resident/login'),
+        requireResident,
         requireVerified,
         requireResidentPin,
         populateResidentLayoutLocals,

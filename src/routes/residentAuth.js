@@ -9,7 +9,7 @@ import {
     maskPhoneDisplay,
     sanitizeIntendedUrl,
 } from '../lib/validators.js';
-import { requireAuth, requireGuest, requireVerified } from '../middleware/auth.js';
+import { requireAuth, requireGuest, requireResident, requireVerified } from '../middleware/auth.js';
 import { verifyMultipartCsrfAndMethod } from '../middleware/csrf.js';
 import { limit10PerMin, limit5PerMin } from '../middleware/rateLimit.js';
 import { uploadRegistrationFiles } from '../middleware/upload.js';
@@ -642,7 +642,7 @@ export function registerResidentAuthRoutes(app) {
     );
 
     // Complete registration (for legacy 'incomplete' accounts)
-    app.get('/complete-registration', requireAuth('/resident/login'), (req, res) => {
+    app.get('/complete-registration', requireAuth('/resident/login'), requireResident, (req, res) => {
         if (req.user.status !== 'incomplete') {
             return res.redirectBackWithErrors({ email: 'Your account is already being processed or is approved.' }, false, '/resident/login');
         }
@@ -652,6 +652,7 @@ export function registerResidentAuthRoutes(app) {
     app.post(
         '/complete-registration',
         requireAuth('/resident/login'),
+        requireResident,
         uploadRegistrationFiles.fields([
             { name: 'proof_of_residency', maxCount: 1 },
             { name: 'selfie_photo', maxCount: 1 },
@@ -733,12 +734,15 @@ export function registerResidentAuthRoutes(app) {
 
     // Pending approval screen
     app.get('/resident/pending-approval', (req, res) => {
+        if (req.user && String(req.user.role || '').trim().toLowerCase() === 'admin') {
+            return res.redirect('/admin');
+        }
         req.routeName = 'resident.pending';
         return res.render('resident/pending_approval');
     });
 
     // Setup 6-digit security PIN
-    app.post('/resident/setup-pin', requireAuth('/resident/login'), requireVerified, async (req, res) => {
+    app.post('/resident/setup-pin', requireAuth('/resident/login'), requireResident, requireVerified, async (req, res) => {
         if (req.user.security_pin) {
             return res.redirectBackWithErrors({ security_pin: 'A security PIN is already configured on your account.' }, false, '/resident');
         }
