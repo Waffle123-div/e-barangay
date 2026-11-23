@@ -1381,8 +1381,9 @@ var viaGoogle = sessionGet('google_reg_id') && sessionGet('google_reg_email');
             if (!newToken) return;
             const meta = document.querySelector('meta[name="csrf-token"]');
             if (meta) meta.content = newToken;
-            const input = document.querySelector('input[name="_token"]');
-            if (input) input.value = newToken;
+            document.querySelectorAll('input[name="_token"]').forEach((input) => {
+                input.value = newToken;
+            });
         }
 
         async function requestOtp(isResend = false) {

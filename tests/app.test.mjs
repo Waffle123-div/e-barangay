@@ -218,3 +218,40 @@ test('requireResident prevents authenticated admin users from entering resident 
         .set('Accept', 'application/json');
     assert.equal(jsonRes.status, 403);
 });
+
+test('multipart CSRF defers on multipart routes even when req.body is pre-populated and still blocks non-multipart routes', async () => {
+    const agent = request.agent(app);
+    const tokRes = await agent.get('/csrf-token');
+    assert.equal(tokRes.status, 200);
+    const token = tokRes.body.csrf_token;
+
+    // Simulate Vercel/serverless pre-populating req.body = {} before Express runs
+    const vercelSimApp = express();
+    vercelSimApp.use((req, _res, next) => {
+        req.body = {};
+        next();
+    });
+    vercelSimApp.use(app);
+
+    // Multipart POST to /resident/register with valid _token in form field should pass CSRF (and redirect back with validation errors, not 403)
+    const regRes = await request(vercelSimApp)
+        .post('/resident/register')
+        .set('Cookie', tokRes.headers['set-cookie'])
+        .field('_token', token)
+        .field('first_name', 'Juan');
+    assert.notEqual(regRes.status, 403, `Expected multipart /resident/register not to fail with 403 CSRF error`);
+
+    // Multipart POST to /resident/register with missing _token should fail in verifyMultipartCsrfAndMethod (403)
+    const missingTokRes = await request(vercelSimApp)
+        .post('/resident/register')
+        .set('Cookie', tokRes.headers['set-cookie'])
+        .field('first_name', 'Juan');
+    assert.equal(missingTokRes.status, 403);
+
+    // Multipart POST to a non-multipart route without token must still be blocked by verifyCsrf (403)
+    const nonMultipartRes = await request(vercelSimApp)
+        .post('/resident/logout')
+        .set('Cookie', tokRes.headers['set-cookie'])
+        .field('foo', 'bar');
+    assert.equal(nonMultipartRes.status, 403);
+});

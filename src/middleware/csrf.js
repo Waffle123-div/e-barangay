@@ -3,6 +3,27 @@ import { escapeHtml } from '../lib/viewHelpers.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+const MULTIPART_ROUTE_PATTERNS = [
+    /^\/resident\/register$/,
+    /^\/complete-registration$/,
+    /^\/resident\/request-document$/,
+    /^\/resident\/community-concerns$/,
+    /^\/resident\/settings\/profile$/,
+    /^\/resident\/settings\/id$/,
+    /^\/admin\/requests\/walk-in$/,
+    /^\/admin\/profile\/update$/,
+    /^\/admin\/concerns\/[^/]+$/,
+    /^\/admin\/document-types$/,
+    /^\/admin\/document-types\/[^/]+$/,
+    /^\/admin\/settings\/profile$/,
+    /^\/admin\/settings\/barangay$/,
+];
+
+function isMultipartRoutePath(reqPath) {
+    const cleanPath = String(reqPath || '').replace(/\/+$/, '') || '/';
+    return MULTIPART_ROUTE_PATTERNS.some((pattern) => pattern.test(cleanPath));
+}
+
 export function ensureCsrfToken(req) {
     if (!req.session) return '';
     if (!req.session.csrfToken) {
@@ -34,7 +55,15 @@ export function verifyCsrf(req, res, next) {
     // Defer multipart/form-data checks until after multer parses fields unless header already provides a valid token
     const contentType = String(req.headers['content-type'] || '').toLowerCase();
     const headerToken = req.headers['x-csrf-token'];
-    if (contentType.startsWith('multipart/form-data') && !req.body && !headerToken) {
+    const hasParsedBodyToken = Boolean(
+        req.body && typeof req.body === 'object' && typeof req.body._token === 'string' && req.body._token.length > 0
+    );
+    if (
+        contentType.startsWith('multipart/form-data') &&
+        !headerToken &&
+        !hasParsedBodyToken &&
+        isMultipartRoutePath(req.path)
+    ) {
         req._deferCsrfToMultipart = true;
         return next();
     }
