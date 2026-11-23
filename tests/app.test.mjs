@@ -1,5 +1,6 @@
 process.env.NODE_ENV = 'test';
 delete process.env.DATABASE_URL;
+delete process.env.GEMINI_API_KEY;
 delete process.env.GROQ_API_KEY;
 
 import assert from 'node:assert/strict';

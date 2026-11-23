@@ -136,8 +136,8 @@ STRICT RULES - HOW THE SYSTEM WORKS (TEACH THE USERS THIS):
 
 If they ask something outside of using this website (like math, coding, or outside barangay matters), politely refuse and guide them back to using the E-Barangay system.`;
 
-        if (!env.groqApiKey) {
-            console.error('Groq API key is not configured.');
+        if (!env.geminiApiKey && !env.groqApiKey) {
+            console.error('Neither GEMINI_API_KEY nor GROQ_API_KEY is configured.');
             return res.status(503).json({
                 reply: 'Pasensya, wala pa na-configure ang atong assistant karon. Palihug sulayi og usab taud-taud.',
             });
@@ -146,6 +146,44 @@ If they ask something outside of using this website (like math, coding, or outsi
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 15000);
         try {
+            if (env.geminiApiKey) {
+                const model = encodeURIComponent(env.geminiModel || 'gemini-2.5-flash');
+                const geminiContents = sanitizedMessages.map((msg) => ({
+                    role: msg.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: msg.content }],
+                }));
+
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                    method: 'POST',
+                    headers: {
+                        'x-goog-api-key': env.geminiApiKey,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        systemInstruction: {
+                            parts: [{ text: systemPrompt }],
+                        },
+                        contents: geminiContents,
+                        generationConfig: {
+                            maxOutputTokens: 512,
+                        },
+                    }),
+                    signal: controller.signal,
+                });
+
+                if (!resp.ok) {
+                    console.error('Gemini API Error:', await resp.text());
+                    return res.json({
+                        reply: 'Pasensya, medyo busy ang atong server karon. Palihug sulayi og usab taud-taud.',
+                    });
+                }
+
+                const json = await resp.json();
+                const parts = json?.candidates?.[0]?.content?.parts || [];
+                const aiText = parts.map((p) => p?.text || '').join('').trim();
+                return res.json({ reply: aiText });
+            }
+
             const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: {

@@ -47,6 +47,8 @@ export const env = {
     textbeeDeviceId: (process.env.TEXTBEE_DEVICE_ID || '').trim(),
     recaptchaSiteKey: (process.env.RECAPTCHA_SITE_KEY || '').trim(),
     recaptchaSecretKey: (process.env.RECAPTCHA_SECRET_KEY || '').trim(),
+    geminiApiKey: (process.env.GEMINI_API_KEY || '').trim(),
+    geminiModel: (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim(),
     groqApiKey: (process.env.GROQ_API_KEY || '').trim(),
 };
 
