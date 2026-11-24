@@ -147,7 +147,7 @@ If they ask something outside of using this website (like math, coding, or outsi
         const timer = setTimeout(() => controller.abort(), 15000);
         try {
             if (env.geminiApiKey) {
-                const model = encodeURIComponent(env.geminiModel || 'gemini-2.5-flash');
+                const model = encodeURIComponent(env.geminiModel || 'gemini-flash-latest');
                 const geminiContents = sanitizedMessages.map((msg) => ({
                     role: msg.role === 'assistant' ? 'model' : 'user',
                     parts: [{ text: msg.content }],

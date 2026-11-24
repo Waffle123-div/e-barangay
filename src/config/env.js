@@ -48,7 +48,7 @@ export const env = {
     recaptchaSiteKey: (process.env.RECAPTCHA_SITE_KEY || '').trim(),
     recaptchaSecretKey: (process.env.RECAPTCHA_SECRET_KEY || '').trim(),
     geminiApiKey: (process.env.GEMINI_API_KEY || '').trim(),
-    geminiModel: (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim(),
+    geminiModel: (process.env.GEMINI_MODEL || 'gemini-flash-latest').trim(),
     groqApiKey: (process.env.GROQ_API_KEY || '').trim(),
 };
 
