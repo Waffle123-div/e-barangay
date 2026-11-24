@@ -147,41 +147,57 @@ If they ask something outside of using this website (like math, coding, or outsi
         const timer = setTimeout(() => controller.abort(), 15000);
         try {
             if (env.geminiApiKey) {
-                const model = encodeURIComponent(env.geminiModel || 'gemini-flash-latest');
+                const primaryModel = env.geminiModel || 'gemini-flash-latest';
+                const candidateModels = [...new Set([primaryModel, 'gemini-flash-lite-latest'])];
                 const geminiContents = sanitizedMessages.map((msg) => ({
                     role: msg.role === 'assistant' ? 'model' : 'user',
                     parts: [{ text: msg.content }],
                 }));
 
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-                    method: 'POST',
-                    headers: {
-                        'x-goog-api-key': env.geminiApiKey,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        systemInstruction: {
-                            parts: [{ text: systemPrompt }],
-                        },
-                        contents: geminiContents,
-                        generationConfig: {
-                            maxOutputTokens: 512,
-                        },
-                    }),
-                    signal: controller.signal,
-                });
+                const callGemini = async (modelName) =>
+                    fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'x-goog-api-key': env.geminiApiKey,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                systemInstruction: {
+                                    parts: [{ text: systemPrompt }],
+                                },
+                                contents: geminiContents,
+                                generationConfig: {
+                                    maxOutputTokens: 512,
+                                },
+                            }),
+                            signal: controller.signal,
+                        }
+                    );
 
-                if (!resp.ok) {
-                    console.error('Gemini API Error:', await resp.text());
+                let resp = null;
+                let lastErrText = '';
+                for (const modelName of candidateModels) {
+                    resp = await callGemini(modelName);
+                    if (resp.ok) {
+                        const json = await resp.json();
+                        const parts = json?.candidates?.[0]?.content?.parts || [];
+                        const aiText = parts.map((p) => p?.text || '').join('').trim();
+                        return res.json({ reply: aiText });
+                    }
+                    lastErrText = await resp.text();
+                    console.error(`Gemini API Error (${modelName}, ${resp.status}):`, lastErrText);
+                    if (resp.status !== 503 && resp.status !== 429 && resp.status !== 404) {
+                        break;
+                    }
+                }
+
+                if (!env.groqApiKey) {
                     return res.json({
                         reply: 'Pasensya, medyo busy ang atong server karon. Palihug sulayi og usab taud-taud.',
                     });
                 }
-
-                const json = await resp.json();
-                const parts = json?.candidates?.[0]?.content?.parts || [];
-                const aiText = parts.map((p) => p?.text || '').join('').trim();
-                return res.json({ reply: aiText });
             }
 
             const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
